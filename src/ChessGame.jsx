@@ -129,7 +129,7 @@ const ChessGame = () => {
     if (notification) {
       const timer = setTimeout(() => {
         setNotification(null);
-      }, 3000);
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [notification]);
