@@ -1,6 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { Timer, X } from "lucide-react";
 
+// Constants for piece types and colors
+const PIECES = {
+  PAWN: "p",
+  ROOK: "r",
+  KNIGHT: "n",
+  BISHOP: "b",
+  QUEEN: "q",
+  KING: "k",
+};
+
+const COLORS = {
+  WHITE: "white",
+  BLACK: "black",
+};
+
+// Format time display
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
 // Custom Alert Component
 const Alert = ({ children, onClose }) => (
   <div className="w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
@@ -15,6 +36,41 @@ const Alert = ({ children, onClose }) => (
     )}
   </div>
 );
+
+// Timer Display Component
+const TimerDisplay = ({ time, isActive }) => (
+  <div className="flex items-center space-x-2">
+    <Timer className="w-6 h-6" />
+    <span className={`text-lg ${isActive ? "font-bold" : ""}`}>
+      {formatTime(time)}
+    </span>
+  </div>
+);
+
+// Piece Component
+const Piece = ({ piece }) => {
+  const pieceSymbols = {
+    [PIECES.PAWN]: "♟",
+    [PIECES.ROOK]: "♜",
+    [PIECES.KNIGHT]: "♞",
+    [PIECES.BISHOP]: "♝",
+    [PIECES.QUEEN]: "♛",
+    [PIECES.KING]: "♚",
+  };
+
+  const isWhitePiece = piece === piece.toUpperCase();
+  const pieceType = piece.toLowerCase();
+
+  return (
+    <span
+      className={`${
+        isWhitePiece ? "text-black" : "text-gray-700"
+      } ${pieceType === PIECES.PAWN && isWhitePiece ? "transform rotate-180" : ""}`}
+    >
+      {pieceSymbols[pieceType]}
+    </span>
+  );
+};
 
 // Initial board setup
 const initialBoard = [
@@ -38,12 +94,7 @@ const ChessGame = () => {
   const [gameStatus, setGameStatus] = useState("active"); // 'active', 'check', 'checkmate'
   const [notification, setNotification] = useState(null);
 
-  // Format time display
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
+  
 
   // Convert position to chess notation
   const toChessNotation = (row, col) => {
@@ -164,155 +215,23 @@ const ChessGame = () => {
     let isValidMove = false;
 
     switch (pieceType) {
-      case "p": // Pawn
-        if (isWhitePiece) {
-          const isFirstMove = startRow === 6;
-          const normalMove =
-            startRow - 1 === endRow &&
-            startCol === endCol &&
-            currentBoard[endRow][endCol] === "";
-          const doubleMove =
-            isFirstMove &&
-            startRow - 2 === endRow &&
-            startCol === endCol &&
-            currentBoard[endRow][endCol] === "" &&
-            currentBoard[startRow - 1][endCol] === "";
-          const captureMove =
-            startRow - 1 === endRow &&
-            Math.abs(startCol - endCol) === 1 &&
-            currentBoard[endRow][endCol] !== "" &&
-            currentBoard[endRow][endCol] ===
-              currentBoard[endRow][endCol].toLowerCase();
-
-          isValidMove = normalMove || doubleMove || captureMove;
-          if (!isValidMove && !ignoreCheck) {
-            setNotification("Invalid pawn move");
-          }
-        } else {
-          const isFirstMove = startRow === 1;
-          const normalMove =
-            startRow + 1 === endRow &&
-            startCol === endCol &&
-            currentBoard[endRow][endCol] === "";
-          const doubleMove =
-            isFirstMove &&
-            startRow + 2 === endRow &&
-            startCol === endCol &&
-            currentBoard[endRow][endCol] === "" &&
-            currentBoard[startRow + 1][endCol] === "";
-          const captureMove =
-            startRow + 1 === endRow &&
-            Math.abs(startCol - endCol) === 1 &&
-            currentBoard[endRow][endCol] !== "" &&
-            currentBoard[endRow][endCol] ===
-              currentBoard[endRow][endCol].toUpperCase();
-
-          isValidMove = normalMove || doubleMove || captureMove;
-          if (!isValidMove && !ignoreCheck) {
-            setNotification("Invalid pawn move");
-          }
-        }
+      case PIECES.PAWN:
+        isValidMove = isValidPawnMove(startRow, startCol, endRow, endCol, currentBoard, isWhitePiece);
         break;
-
-      case "r": // Rook
-        if (startRow === endRow || startCol === endCol) {
-          const rowDir =
-            startRow === endRow
-              ? 0
-              : (endRow - startRow) / Math.abs(endRow - startRow);
-          const colDir =
-            startCol === endCol
-              ? 0
-              : (endCol - startCol) / Math.abs(endCol - startCol);
-          let row = startRow + rowDir;
-          let col = startCol + colDir;
-
-          isValidMove = true;
-          while (row !== endRow || col !== endCol) {
-            if (currentBoard[row][col] !== "") {
-              isValidMove = false;
-              break;
-            }
-            row += rowDir;
-            col += colDir;
-          }
-        }
-        if (!isValidMove && !ignoreCheck) {
-          setNotification("Invalid rook move");
-        }
+      case PIECES.ROOK:
+        isValidMove = isValidRookMove(startRow, startCol, endRow, endCol, currentBoard);
         break;
-
-      case "n": // Knight
-        isValidMove =
-          (Math.abs(startRow - endRow) === 2 &&
-            Math.abs(startCol - endCol) === 1) ||
-          (Math.abs(startRow - endRow) === 1 &&
-            Math.abs(startCol - endCol) === 2);
-        if (!isValidMove && !ignoreCheck) {
-          setNotification("Invalid knight move");
-        }
+      case PIECES.KNIGHT:
+        isValidMove = isValidKnightMove(startRow, startCol, endRow, endCol);
         break;
-
-      case "b": // Bishop
-        if (Math.abs(startRow - endRow) === Math.abs(startCol - endCol)) {
-          const rowDir = (endRow - startRow) / Math.abs(endRow - startRow);
-          const colDir = (endCol - startCol) / Math.abs(endCol - startCol);
-          let row = startRow + rowDir;
-          let col = startCol + colDir;
-
-          isValidMove = true;
-          while (row !== endRow && col !== endCol) {
-            if (currentBoard[row][col] !== "") {
-              isValidMove = false;
-              break;
-            }
-            row += rowDir;
-            col += colDir;
-          }
-        }
-        if (!isValidMove && !ignoreCheck) {
-          setNotification("Invalid bishop move");
-        }
+      case PIECES.BISHOP:
+        isValidMove = isValidBishopMove(startRow, startCol, endRow, endCol, currentBoard);
         break;
-
-      case "q": // Queen
-        if (
-          startRow === endRow ||
-          startCol === endCol ||
-          Math.abs(startRow - endRow) === Math.abs(startCol - endCol)
-        ) {
-          const rowDir =
-            startRow === endRow
-              ? 0
-              : (endRow - startRow) / Math.abs(endRow - startRow);
-          const colDir =
-            startCol === endCol
-              ? 0
-              : (endCol - startCol) / Math.abs(endCol - startCol);
-          let row = startRow + rowDir;
-          let col = startCol + colDir;
-
-          isValidMove = true;
-          while (row !== endRow || col !== endCol) {
-            if (currentBoard[row][col] !== "") {
-              isValidMove = false;
-              break;
-            }
-            row += rowDir;
-            col += colDir;
-          }
-        }
-        if (!isValidMove && !ignoreCheck) {
-          setNotification("Invalid queen move");
-        }
+      case PIECES.QUEEN:
+        isValidMove = isValidQueenMove(startRow, startCol, endRow, endCol, currentBoard);
         break;
-
-      case "k": // King
-        isValidMove =
-          Math.abs(startRow - endRow) <= 1 && Math.abs(startCol - endCol) <= 1;
-        if (!isValidMove && !ignoreCheck) {
-          setNotification("Invalid king move");
-        }
+      case PIECES.KING:
+        isValidMove = isValidKingMove(startRow, startCol, endRow, endCol);
         break;
     }
 
@@ -326,16 +245,115 @@ const ChessGame = () => {
     return isValidMove;
   };
 
+  // Check if a pawn move is valid
+  const isValidPawnMove = (startRow, startCol, endRow, endCol, currentBoard, isWhitePiece) => {
+    const direction = isWhitePiece ? -1 : 1;
+    const isFirstMove = isWhitePiece ? startRow === 6 : startRow === 1;
+    const normalMove = startRow + direction === endRow && startCol === endCol && currentBoard[endRow][endCol] === "";
+    const doubleMove = isFirstMove && startRow + 2 * direction === endRow && startCol === endCol && currentBoard[endRow][endCol] === "" && currentBoard[startRow + direction][endCol] === "";
+    const captureMove = startRow + direction === endRow && Math.abs(startCol - endCol) === 1 && currentBoard[endRow][endCol] !== "" && isWhitePiece !== (currentBoard[endRow][endCol] === currentBoard[endRow][endCol].toUpperCase());
+
+    const isValidMove = normalMove || doubleMove || captureMove;
+    if (!isValidMove) {
+      setNotification("Invalid pawn move");
+    }
+    return isValidMove;
+  };
+
+  // Check if a rook move is valid
+  const isValidRookMove = (startRow, startCol, endRow, endCol, currentBoard) => {
+    if (startRow === endRow || startCol === endCol) {
+      const rowDir = startRow === endRow ? 0 : (endRow - startRow) / Math.abs(endRow - startRow);
+      const colDir = startCol === endCol ? 0 : (endCol - startCol) / Math.abs(endCol - startCol);
+      let row = startRow + rowDir;
+      let col = startCol + colDir;
+
+      while (row !== endRow || col !== endCol) {
+        if (currentBoard[row][col] !== "") {
+          setNotification("Invalid rook move");
+          return false;
+        }
+        row += rowDir;
+        col += colDir;
+      }
+      return true;
+    }
+    setNotification("Invalid rook move");
+    return false;
+  };
+
+  // Check if a knight move is valid
+  const isValidKnightMove = (startRow, startCol, endRow, endCol) => {
+    const isValidMove = (Math.abs(startRow - endRow) === 2 && Math.abs(startCol - endCol) === 1) || (Math.abs(startRow - endRow) === 1 && Math.abs(startCol - endCol) === 2);
+    if (!isValidMove) {
+      setNotification("Invalid knight move");
+    }
+    return isValidMove;
+  };
+
+  // Check if a bishop move is valid
+  const isValidBishopMove = (startRow, startCol, endRow, endCol, currentBoard) => {
+    if (Math.abs(startRow - endRow) === Math.abs(startCol - endCol)) {
+      const rowDir = (endRow - startRow) / Math.abs(endRow - startRow);
+      const colDir = (endCol - startCol) / Math.abs(endCol - startCol);
+      let row = startRow + rowDir;
+      let col = startCol + colDir;
+
+      while (row !== endRow && col !== endCol) {
+        if (currentBoard[row][col] !== "") {
+          setNotification("Invalid bishop move");
+          return false;
+        }
+        row += rowDir;
+        col += colDir;
+      }
+      return true;
+    }
+    setNotification("Invalid bishop move");
+    return false;
+  };
+
+  // Check if a queen move is valid
+  const isValidQueenMove = (startRow, startCol, endRow, endCol, currentBoard) => {
+    if (startRow === endRow || startCol === endCol || Math.abs(startRow - endRow) === Math.abs(startCol - endCol)) {
+      const rowDir = startRow === endRow ? 0 : (endRow - startRow) / Math.abs(endRow - startRow);
+      const colDir = startCol === endCol ? 0 : (endCol - startCol) / Math.abs(endCol - startCol);
+      let row = startRow + rowDir;
+      let col = startCol + colDir;
+
+      while (row !== endRow || col !== endCol) {
+        if (currentBoard[row][col] !== "") {
+          setNotification("Invalid queen move");
+          return false;
+        }
+        row += rowDir;
+        col += colDir;
+      }
+      return true;
+    }
+    setNotification("Invalid queen move");
+    return false;
+  };
+
+  // Check if a king move is valid
+  const isValidKingMove = (startRow, startCol, endRow, endCol) => {
+    const isValidMove = Math.abs(startRow - endRow) <= 1 && Math.abs(startCol - endCol) <= 1;
+    if (!isValidMove) {
+      setNotification("Invalid king move");
+    }
+    return isValidMove;
+  };
+
   // Check if any valid moves exist
   const checkForValidMoves = (isWhite, currentBoard) => {
     for (let startRow = 0; startRow < 8; startRow++) {
-      for (let startCol = 0; startCol < 8; startCol++) {
+      for (let startCol = 0; startCol++;) {
         const piece = currentBoard[startRow][startCol];
         if (piece === "" || (piece === piece.toUpperCase()) !== isWhite)
           continue;
 
         for (let endRow = 0; endRow < 8; endRow++) {
-          for (let endCol = 0; endCol < 8; endCol++) {
+          for (let endCol = 0; endCol++;) {
             if (
               isLegalMove(
                 startRow,
@@ -420,18 +438,8 @@ const ChessGame = () => {
       )}
 
       <div className="flex justify-between w-full mb-4">
-        <div className="flex items-center space-x-2">
-          <Timer className="w-6 h-6" />
-          <span className={`text-lg ${!isWhiteTurn ? "font-bold" : ""}`}>
-            Black: {formatTime(blackTime)}
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Timer className="w-6 h-6" />
-          <span className={`text-lg ${isWhiteTurn ? "font-bold" : ""}`}>
-            White: {formatTime(whiteTime)}
-          </span>
-        </div>
+        <TimerDisplay time={blackTime} isActive={!isWhiteTurn} />
+        <TimerDisplay time={whiteTime} isActive={isWhiteTurn} />
       </div>
 
       <div className="grid grid-cols-8 gap-0 border border-gray-400">
