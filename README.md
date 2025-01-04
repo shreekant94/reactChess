@@ -1,2 +1,2 @@
 Frontend Link:
-https://reactchess-nwma.onrender.com
+https://reactchess-66p2.onrender.com/
